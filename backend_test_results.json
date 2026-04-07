@@ -1,0 +1,158 @@
+{
+  "timestamp": "2026-04-07T19:20:28.489286",
+  "success_rate": 100.0,
+  "tests_passed": 25,
+  "tests_run": 25,
+  "results": [
+    {
+      "test": "Auth Login",
+      "success": true,
+      "details": "Token: sess_d6bb12518e7b435...",
+      "response_data": null
+    },
+    {
+      "test": "Auth Me Endpoint",
+      "success": true,
+      "details": "User: test@keeps.app",
+      "response_data": null
+    },
+    {
+      "test": "Auth Logout",
+      "success": true,
+      "details": "",
+      "response_data": null
+    },
+    {
+      "test": "Dashboard Summary",
+      "success": true,
+      "details": "Revenue: $13200.0",
+      "response_data": null
+    },
+    {
+      "test": "List Invoices",
+      "success": true,
+      "details": "Count: 3",
+      "response_data": null
+    },
+    {
+      "test": "Create Invoice",
+      "success": true,
+      "details": "ID: 5fb8d44f-b1ce-4b56-88f9-c3bc84c7dd77",
+      "response_data": null
+    },
+    {
+      "test": "Update Invoice",
+      "success": true,
+      "details": "Status: sent",
+      "response_data": null
+    },
+    {
+      "test": "Delete Invoice",
+      "success": true,
+      "details": "",
+      "response_data": null
+    },
+    {
+      "test": "VAT Calculator",
+      "success": true,
+      "details": "Tax: $2000.0",
+      "response_data": null
+    },
+    {
+      "test": "Withholding Tax Calculator",
+      "success": true,
+      "details": "Tax: $1500.0",
+      "response_data": null
+    },
+    {
+      "test": "Income Tax Calculator",
+      "success": true,
+      "details": "Tax: $12000.0",
+      "response_data": null
+    },
+    {
+      "test": "Tax Summary",
+      "success": true,
+      "details": "Revenue: $13200.0",
+      "response_data": null
+    },
+    {
+      "test": "Get Tax Vault",
+      "success": true,
+      "details": "Amount: $3500.0",
+      "response_data": null
+    },
+    {
+      "test": "Set Vault Target",
+      "success": true,
+      "details": "Target: $5000.0",
+      "response_data": null
+    },
+    {
+      "test": "Vault Deposit",
+      "success": true,
+      "details": "New amount: $4500.0",
+      "response_data": null
+    },
+    {
+      "test": "Vault Withdraw",
+      "success": true,
+      "details": "New amount: $4000.0",
+      "response_data": null
+    },
+    {
+      "test": "List Projects",
+      "success": true,
+      "details": "Count: 1",
+      "response_data": null
+    },
+    {
+      "test": "Create Project",
+      "success": true,
+      "details": "ID: dbd32f23-7105-4c3d-b1b4-aa9653d96bef",
+      "response_data": null
+    },
+    {
+      "test": "Add Milestone",
+      "success": true,
+      "details": "Milestone: Test Milestone",
+      "response_data": null
+    },
+    {
+      "test": "Delete Project",
+      "success": true,
+      "details": "",
+      "response_data": null
+    },
+    {
+      "test": "AI Chat",
+      "success": true,
+      "details": "Response length: 2626 chars",
+      "response_data": null
+    },
+    {
+      "test": "AI History",
+      "success": true,
+      "details": "Messages: 1",
+      "response_data": null
+    },
+    {
+      "test": "FX Rates",
+      "success": true,
+      "details": "Currencies: 166",
+      "response_data": null
+    },
+    {
+      "test": "List Clients",
+      "success": true,
+      "details": "Count: 0",
+      "response_data": null
+    },
+    {
+      "test": "Create Client",
+      "success": true,
+      "details": "ID: 10231063-7fb8-4887-b925-2fa60411698e",
+      "response_data": null
+    }
+  ]
+}

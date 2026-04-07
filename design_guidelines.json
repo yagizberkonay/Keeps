@@ -1,0 +1,122 @@
+{
+  "theme": "dark",
+  "archetype": "5 (Jewel & Luxury) - Adapted for Premium Fintech",
+  "brand": {
+    "name": "Keeps",
+    "developer": "Hermes Software Inc.",
+    "vibe": "Calm, premium, effortless, low-contrast, highly professional",
+    "logo_instructions": "Create a minimal geometric logo using an SVG. A sleek, sharp letter 'K' composed of two interlocking semi-transparent polygons, colored in muted silver and soft amber. Text 'Keeps' alongside it in Outfit font, tracking-tight."
+  },
+  "colors": {
+    "background": "#09090C",
+    "foreground": "#D4D4D8",
+    "muted_text": "#80808A",
+    "primary": "#E2E2E6",
+    "accent_positive": "#4A6E59",
+    "accent_warning": "#A18252",
+    "accent_info": "#3B5A70",
+    "glass": {
+      "base": "rgba(255, 255, 255, 0.02)",
+      "hover": "rgba(255, 255, 255, 0.04)",
+      "border": "rgba(255, 255, 255, 0.08)",
+      "strong_blur": "backdrop-blur-2xl",
+      "light_blur": "backdrop-blur-md"
+    },
+    "gradients": {
+      "page_background": "radial-gradient(circle at top right, rgba(255,255,255,0.03) 0%, transparent 40%), radial-gradient(circle at bottom left, rgba(161,130,82,0.02) 0%, transparent 50%)"
+    }
+  },
+  "typography": {
+    "headings": {
+      "font": "Outfit, sans-serif",
+      "weights": ["300", "400", "500"],
+      "styling": "tracking-tight leading-tight text-white/90"
+    },
+    "body": {
+      "font": "Inter, sans-serif",
+      "weights": ["400"],
+      "styling": "text-zinc-400 leading-relaxed tabular-nums"
+    },
+    "labels": {
+      "font": "Inter, sans-serif",
+      "styling": "text-xs uppercase tracking-widest text-zinc-500 font-medium"
+    }
+  },
+  "components": {
+    "cards": {
+      "style": "Crystal Glass",
+      "classes": "bg-white/[0.02] backdrop-blur-xl border border-white/10 rounded-2xl shadow-[0_8px_32px_rgba(0,0,0,0.4)] transition-all duration-300",
+      "hover_classes": "hover:bg-white/[0.04] hover:border-white/20"
+    },
+    "buttons": {
+      "primary": "bg-zinc-100 text-zinc-900 hover:bg-white rounded-lg px-6 py-2.5 font-medium transition-colors shadow-[0_0_15px_rgba(255,255,255,0.1)]",
+      "secondary": "bg-white/5 text-zinc-300 border border-white/10 hover:bg-white/10 rounded-lg px-6 py-2.5 transition-colors",
+      "ghost": "text-zinc-400 hover:text-zinc-100 hover:bg-white/5 px-4 py-2 rounded-lg transition-colors"
+    },
+    "inputs": {
+      "classes": "bg-black/20 border border-white/10 rounded-lg px-4 py-2.5 text-zinc-200 focus:outline-none focus:ring-1 focus:ring-white/30 focus:border-white/30 placeholder:text-zinc-600 transition-all"
+    }
+  },
+  "layout": {
+    "general": "The 'Control Room' grid. Mobile-first responsive, generous padding (p-6, p-8) inside cards.",
+    "sidebar": "Fixed left, glassmorphic with very subtle right border. Width 260px on desktop.",
+    "header": "Sticky top, glassmorphic (bg-black/40 backdrop-blur-xl), z-50.",
+    "dashboard_grid": "CSS Grid: grid-cols-1 md:grid-cols-3 lg:grid-cols-4. Gap-6."
+  },
+  "features": {
+    "overview": "Top summary cards (col-span-1) for Revenue, Expenses, Tax Liability. Main chart (col-span-2 or 3) using Recharts with soft curving lines.",
+    "invoice_engine": "Glassmorphic form with multi-currency Select components. Include a visual PDF preview pane that looks like a frosted glass document.",
+    "tax_management": "Bento box layout showing VAT, Withholding, Income. Use muted progress bars or soft radial charts.",
+    "ai_advisor": "A floating action button (FAB) in bottom right that expands into a sleek 'floating glass sheet' modal/sidebar. Use backdrop-blur-3xl and a very subtle glowing border. OCR upload zone should look like a dashed glass box.",
+    "project_management": "List of clients and milestones. Use avatars (from Unsplash) and soft status badges (e.g., bg-emerald-500/10 text-emerald-400).",
+    "tax_sinking_fund": "The 'Visual Vault'. A large, prominent circular progress indicator in the center of a card, with glowing muted gold accents, representing the amount safely set aside for taxes.",
+    "global_compliance": "A minimalist list or interactive SVG map highlighting compliant regions in soft sage green."
+  },
+  "icons": {
+    "library": "lucide-react",
+    "stroke_width": 1.5,
+    "size": "w-5 h-5",
+    "color": "text-zinc-400"
+  },
+  "images": {
+    "avatars": [
+      {
+        "url": "https://images.unsplash.com/photo-1767175620484-1ed37931a0d1?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDk1Nzl8MHwxfHNlYXJjaHwyfHxwcm9mZXNzaW9uYWwlMjBwb3J0cmFpdCUyMG1vZGVybiUyMG1pbmltYWx8ZW58MHx8fHwxNzc1NTg4ODkyfDA&ixlib=rb-4.1.0&q=85",
+        "category": "user_avatar",
+        "description": "Professional male avatar for dashboard top right"
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1758922584983-82ffd5720c6a?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDk1Nzl8MHwxfHNlYXJjaHwxfHxwcm9mZXNzaW9uYWwlMjBwb3J0cmFpdCUyMG1vZGVybiUyMG1pbmltYWx8ZW58MHx8fHwxNzc1NTg4ODkyfDA&ixlib=rb-4.1.0&q=85",
+        "category": "client_avatar",
+        "description": "Professional female client avatar for project management"
+      }
+    ],
+    "backgrounds": [
+      {
+        "url": "https://images.unsplash.com/photo-1770031079091-c6356e82ea9b?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2NzZ8MHwxfHNlYXJjaHwyfHxkYXJrJTIwYWJzdHJhY3QlMjBnbGFzc21vcnBoaXNtfGVufDB8fHx8MTc3NTU4ODkwNXww&ixlib=rb-4.1.0&q=85",
+        "category": "auth_background",
+        "description": "Abstract dark metallic/glass background for the login page to give a premium feel"
+      }
+    ]
+  },
+  "animations": {
+    "hover": "All glass cards must lift slightly (-translate-y-1) and increase border opacity on hover.",
+    "page_load": "Framer motion stagger children for dashboard cards. Fade and slide up (y: 20, opacity: 0 -> y: 0, opacity: 1).",
+    "ai_advisor": "Spring animation from bottom-right origin when expanding the glass sheet."
+  },
+  "accessibility": {
+    "contrast": "Ensure text-zinc-400 against #09090C meets 4.5:1 ratio. Avoid using pure #000 or #FFF everywhere. Use subtle text-shadow if layered over the background image.",
+    "testing": "All interactive elements must have data-testid attributes (e.g., data-testid='create-invoice-button')."
+  },
+  "instructions_to_main_agent": [
+    "Use Tailwind CSS for all layout and styling.",
+    "Use Shadcn UI but aggressively strip out the default 'card' white backgrounds and borders, replacing them with the defined 'Crystal Glass' styles (bg-white/[0.02] backdrop-blur-xl border-white/10).",
+    "Install and use 'lucide-react' for all icons.",
+    "For Recharts, use transparent backgrounds, no grid lines (or 5% opacity white), and soft muted colors (#E2E2E6, #4A6E59) for lines/bars.",
+    "Implement the 'Tax Sinking Fund' as a prominent visual widget, perhaps a circular SVG progress tracker with a soft glowing drop-shadow in #A18252.",
+    "The AI Advisor should literally be a floating panel (fixed bottom-right) that looks like a frosted piece of glass over the dashboard.",
+    "Do NOT use bright blues, purples, or neon colors. Stick strictly to the muted dark titanium, silver, and sage palette.",
+    "Include 'Hermes Software Inc.' subtly in the auth footer or dashboard bottom.",
+    "Implement Google OAuth button on the Auth page using a glassmorphic styling, keeping the Google icon but changing the button background to white/5."
+  ]
+}

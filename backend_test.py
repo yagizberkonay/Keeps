@@ -7,33 +7,42 @@ class KeepsAPITester:
     def __init__(self, base_url="https://nomad-taxes.preview.emergentagent.com"):
         self.base_url = base_url
         self.api_url = f"{base_url}/api"
-        self.session_token = None
+        self.session_token = "sess_e6b00d410a094061bdb284086a3ead35"  # Phase 4 test token
+        self.portal_token = "cb90aa071db24113"  # Existing portal token
         self.tests_run = 0
         self.tests_passed = 0
         self.user_id = None
+        self.failed_tests = []
 
-    def run_test(self, name, method, endpoint, expected_status, data=None, headers=None):
+    def run_test(self, name, method, endpoint, expected_status, data=None, headers=None, use_cookies=False):
         """Run a single API test"""
         url = f"{self.api_url}/{endpoint}"
         test_headers = {'Content-Type': 'application/json'}
-        if self.session_token:
+        
+        if use_cookies:
+            # Use cookie-based auth for Phase 4 testing
+            test_headers['Cookie'] = f'session_token={self.session_token}'
+        elif self.session_token:
             test_headers['Authorization'] = f'Bearer {self.session_token}'
+            
         if headers:
             test_headers.update(headers)
 
         self.tests_run += 1
         print(f"\n🔍 Testing {name}...")
+        print(f"   URL: {url}")
         
         try:
             if method == 'GET':
-                response = requests.get(url, headers=test_headers)
+                response = requests.get(url, headers=test_headers, timeout=10)
             elif method == 'POST':
-                response = requests.post(url, json=data, headers=test_headers)
+                response = requests.post(url, json=data, headers=test_headers, timeout=10)
             elif method == 'PUT':
-                response = requests.put(url, json=data, headers=test_headers)
+                response = requests.put(url, json=data, headers=test_headers, timeout=10)
             elif method == 'DELETE':
-                response = requests.delete(url, headers=test_headers)
+                response = requests.delete(url, headers=test_headers, timeout=10)
 
+            print(f"   Status: {response.status_code}")
             success = response.status_code == expected_status
             if success:
                 self.tests_passed += 1
@@ -49,10 +58,22 @@ class KeepsAPITester:
                     print(f"   Error: {error_data}")
                 except:
                     print(f"   Response: {response.text}")
+                self.failed_tests.append({
+                    "test": name,
+                    "endpoint": endpoint,
+                    "expected": expected_status,
+                    "actual": response.status_code,
+                    "error": response.text[:200]
+                })
                 return False, {}
 
         except Exception as e:
             print(f"❌ Failed - Error: {str(e)}")
+            self.failed_tests.append({
+                "test": name,
+                "endpoint": endpoint,
+                "error": str(e)
+            })
             return False, {}
 
     def test_login(self):
@@ -552,22 +573,235 @@ class KeepsAPITester:
         
         return success
 
+    # ===== PHASE 4 TESTS =====
+    
+    def test_phase4_auth_status(self):
+        """Test if authentication is working with provided session token"""
+        print("\n" + "="*50)
+        print("TESTING PHASE 4 AUTHENTICATION")
+        print("="*50)
+        
+        success, response = self.run_test(
+            "Auth Status Check (Phase 4)",
+            "GET",
+            "auth/me",
+            200,
+            use_cookies=True
+        )
+        
+        if success:
+            print(f"   User: {response.get('name', 'Unknown')} ({response.get('email', 'No email')})")
+            print(f"   Language: {response.get('language', 'en')}")
+            self.user_id = response.get('user_id')
+            return True
+        return False
+
+    def test_recurring_invoices(self):
+        """Test recurring invoice functionality"""
+        print("\n" + "="*50)
+        print("TESTING RECURRING INVOICES")
+        print("="*50)
+        
+        # Test list recurring templates
+        success, templates = self.run_test(
+            "List Recurring Templates",
+            "GET",
+            "recurring",
+            200,
+            use_cookies=True
+        )
+        
+        if success:
+            print(f"   Found {len(templates)} recurring templates")
+        
+        # Test create recurring template
+        recurring_data = {
+            "client_name": "Test Recurring Client",
+            "client_email": "recurring@test.com",
+            "currency": "USD",
+            "tax_rate": 10,
+            "frequency": "monthly",
+            "items": [
+                {
+                    "description": "Monthly Service",
+                    "quantity": 1,
+                    "unit_price": 100
+                }
+            ],
+            "notes": "Test recurring template"
+        }
+        
+        success, created_template = self.run_test(
+            "Create Recurring Template",
+            "POST",
+            "recurring",
+            200,
+            data=recurring_data,
+            use_cookies=True
+        )
+        
+        template_id = None
+        if success:
+            template_id = created_template.get('id')
+            print(f"   Created template ID: {template_id}")
+        
+        # Test generate invoice from template
+        if template_id:
+            success, generated_invoice = self.run_test(
+                "Generate Invoice from Template",
+                "POST",
+                f"recurring/{template_id}/generate",
+                200,
+                use_cookies=True
+            )
+            
+            if success:
+                print(f"   Generated invoice: {generated_invoice.get('invoice_number')}")
+                return True
+        
+        return template_id is not None
+
+    def test_client_portal(self):
+        """Test client portal functionality"""
+        print("\n" + "="*50)
+        print("TESTING CLIENT PORTAL")
+        print("="*50)
+        
+        # Test public portal access (no auth required)
+        success, portal_invoice = self.run_test(
+            "Access Client Portal (Public)",
+            "GET",
+            f"portal/{self.portal_token}",
+            200,
+            headers={'Content-Type': 'application/json'}  # No auth headers
+        )
+        
+        if success:
+            print(f"   Portal invoice: {portal_invoice.get('invoice_number', 'Unknown')}")
+            print(f"   Client: {portal_invoice.get('client_name', 'Unknown')}")
+            print(f"   Total: {portal_invoice.get('currency', 'USD')} {portal_invoice.get('total', 0)}")
+            return True
+        
+        return False
+
+    def test_notifications(self):
+        """Test notifications functionality"""
+        print("\n" + "="*50)
+        print("TESTING NOTIFICATIONS")
+        print("="*50)
+        
+        # Test list notifications
+        success, notifications = self.run_test(
+            "List Notifications",
+            "GET",
+            "notifications",
+            200,
+            use_cookies=True
+        )
+        
+        if success:
+            print(f"   Found {len(notifications)} notifications")
+            unread_count = len([n for n in notifications if not n.get('read', True)])
+            print(f"   Unread: {unread_count}")
+        
+        # Test mark all notifications as read
+        success, response = self.run_test(
+            "Mark All Notifications Read",
+            "POST",
+            "notifications/read",
+            200,
+            use_cookies=True
+        )
+        
+        if success:
+            print(f"   Response: {response.get('message', 'Success')}")
+        
+        return success
+
+    def test_language_settings(self):
+        """Test language settings functionality"""
+        print("\n" + "="*50)
+        print("TESTING LANGUAGE SETTINGS")
+        print("="*50)
+        
+        # Test update language
+        language_data = {"language": "tr"}
+        success, response = self.run_test(
+            "Update Language to Turkish",
+            "PUT",
+            "settings/language",
+            200,
+            data=language_data,
+            use_cookies=True
+        )
+        
+        if success:
+            print(f"   Language updated: {response.get('language', 'Unknown')}")
+        
+        # Test auth/me returns language
+        success, user_data = self.run_test(
+            "Check Language in User Profile",
+            "GET",
+            "auth/me",
+            200,
+            use_cookies=True
+        )
+        
+        if success:
+            current_lang = user_data.get('language', 'en')
+            print(f"   Current language: {current_lang}")
+            
+            # Reset to English
+            reset_success, _ = self.run_test(
+                "Reset Language to English",
+                "PUT",
+                "settings/language",
+                200,
+                data={"language": "en"},
+                use_cookies=True
+            )
+            
+            return current_lang == "tr"
+        
+        return False
+
 def main():
-    print("🚀 Starting Keeps API Testing (Phase 3)")
+    print("🚀 Starting Keeps API Testing (Phase 4)")
     print("=" * 50)
     
     tester = KeepsAPITester()
     
-    # Test authentication first
-    if not tester.test_login():
-        print("❌ Authentication failed, stopping tests")
-        return 1
+    # Test Phase 4 authentication first with provided session token
+    if not tester.test_phase4_auth_status():
+        print("❌ Phase 4 Authentication failed, trying regular login")
+        if not tester.test_login():
+            print("❌ Authentication failed, stopping tests")
+            return 1
         
-    if not tester.test_auth_me():
-        print("❌ Auth verification failed")
-        return 1
+        if not tester.test_auth_me():
+            print("❌ Auth verification failed")
+            return 1
+    
+    # Test Phase 4 features first
+    print("\n🔥 Testing Phase 4 Features")
+    phase4_tests = [
+        tester.test_recurring_invoices,
+        tester.test_client_portal,
+        tester.test_notifications,
+        tester.test_language_settings,
+    ]
+    
+    phase4_passed = 0
+    for test in phase4_tests:
+        if test():
+            phase4_passed += 1
+        else:
+            print(f"❌ Phase 4 test {test.__name__} failed")
+    
+    print(f"\n📊 Phase 4 Results: {phase4_passed}/{len(phase4_tests)} tests passed")
     
     # Test all CRUD operations including Phase 3 features
+    print("\n🔧 Testing Core Features")
     tests = [
         tester.test_dashboard_summary,
         tester.test_invoice_crud,
@@ -591,6 +825,15 @@ def main():
     print("\n" + "=" * 50)
     print(f"📊 Final Results: {tester.tests_passed}/{tester.tests_run} tests passed")
     print(f"Success Rate: {(tester.tests_passed/tester.tests_run*100):.1f}%")
+    
+    if tester.failed_tests:
+        print(f"\n❌ Failed tests ({len(tester.failed_tests)}):")
+        for i, test in enumerate(tester.failed_tests, 1):
+            print(f"   {i}. {test['test']}")
+            print(f"      Endpoint: {test['endpoint']}")
+            if 'expected' in test:
+                print(f"      Expected: {test['expected']}, Got: {test['actual']}")
+            print(f"      Error: {test['error']}")
     
     if tester.tests_passed == tester.tests_run:
         print("🎉 All backend tests passed!")

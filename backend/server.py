@@ -146,6 +146,18 @@ class ComplianceCheckRequest(BaseModel):
     invoice_id: str
     country_code: str = "US"
 
+class RecurringCreate(BaseModel):
+    client_name: str
+    client_email: str = ""
+    currency: str = "USD"
+    tax_rate: float = 0
+    frequency: str = "monthly"
+    items: list = []
+    notes: str = ""
+
+class LanguageUpdate(BaseModel):
+    language: str
+
 COMPLIANCE_RULES = {
     "US": {"name": "United States", "requirements": ["seller_name", "buyer_name", "invoice_number", "date", "line_items", "total"], "tax_id_required": False, "notes": "No mandatory VAT. State sales tax may apply."},
     "GB": {"name": "United Kingdom", "requirements": ["seller_name", "buyer_name", "invoice_number", "date", "line_items", "total", "vat_number", "tax_breakdown"], "tax_id_required": True, "notes": "VAT number required for VAT-registered businesses. Standard rate 20%."},
@@ -252,7 +264,8 @@ async def auth_me(user: dict = Depends(get_current_user)):
         "email": user["email"],
         "name": user["name"],
         "picture": user.get("picture", ""),
-        "company": user.get("company", "")
+        "company": user.get("company", ""),
+        "language": user.get("language", "en")
     }
 
 @api_router.post("/auth/session")
@@ -387,6 +400,7 @@ async def create_invoice(data: InvoiceCreate, user: dict = Depends(get_current_u
         "payment_terms": data.payment_terms,
         "from_name": data.from_name or user.get("name", ""),
         "from_address": data.from_address,
+        "portal_token": uuid.uuid4().hex[:16],
         "created_at": now
     }
     await db.invoices.insert_one(doc)
@@ -399,6 +413,7 @@ async def update_invoice(invoice_id: str, request: Request, user: dict = Depends
     body.pop("_id", None)
     body.pop("id", None)
     body.pop("user_id", None)
+    old = await db.invoices.find_one({"id": invoice_id, "user_id": user["user_id"]}, {"_id": 0})
     result = await db.invoices.update_one(
         {"id": invoice_id, "user_id": user["user_id"]},
         {"$set": body}
@@ -406,6 +421,14 @@ async def update_invoice(invoice_id: str, request: Request, user: dict = Depends
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Invoice not found")
     updated = await db.invoices.find_one({"id": invoice_id}, {"_id": 0})
+    # Create notification on status change
+    if old and body.get("status") and body["status"] != old.get("status"):
+        await db.notifications.insert_one({
+            "id": str(uuid.uuid4()), "user_id": user["user_id"], "read": False,
+            "message": f'Invoice {old.get("invoice_number", "")} for {old.get("client_name", "")} marked as {body["status"]}',
+            "type": "invoice_status", "ref_id": invoice_id,
+            "created_at": datetime.now(timezone.utc).isoformat()
+        })
     return updated
 
 @api_router.delete("/invoices/{invoice_id}")
@@ -1001,6 +1024,120 @@ async def check_compliance(data: ComplianceCheckRequest, user: dict = Depends(ge
 @api_router.get("/expenses/categories")
 async def get_expense_categories(user: dict = Depends(get_current_user)):
     return EXPENSE_CATEGORIES
+
+# ─── Recurring Invoices ───
+
+@api_router.get("/recurring")
+async def list_recurring(user: dict = Depends(get_current_user)):
+    return await db.recurring.find({"user_id": user["user_id"]}, {"_id": 0}).to_list(1000)
+
+@api_router.post("/recurring")
+async def create_recurring(data: RecurringCreate, user: dict = Depends(get_current_user)):
+    from dateutil.relativedelta import relativedelta
+    freq_map = {"weekly": timedelta(weeks=1), "monthly": relativedelta(months=1), "quarterly": relativedelta(months=3), "yearly": relativedelta(years=1)}
+    delta = freq_map.get(data.frequency, relativedelta(months=1))
+    next_date = (datetime.now(timezone.utc) + delta).strftime("%Y-%m-%d") if isinstance(delta, timedelta) else (datetime.now(timezone.utc) + delta).strftime("%Y-%m-%d")
+    doc = {
+        "id": str(uuid.uuid4()), "user_id": user["user_id"],
+        "client_name": data.client_name, "client_email": data.client_email,
+        "currency": data.currency, "tax_rate": data.tax_rate,
+        "frequency": data.frequency, "items": [dict(i) if not isinstance(i, dict) else i for i in data.items],
+        "notes": data.notes, "status": "active", "next_date": next_date,
+        "last_generated": None, "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.recurring.insert_one(doc)
+    doc.pop("_id", None)
+    return doc
+
+@api_router.put("/recurring/{recurring_id}")
+async def update_recurring(recurring_id: str, request: Request, user: dict = Depends(get_current_user)):
+    body = await request.json()
+    body.pop("_id", None)
+    body.pop("id", None)
+    await db.recurring.update_one({"id": recurring_id, "user_id": user["user_id"]}, {"$set": body})
+    updated = await db.recurring.find_one({"id": recurring_id}, {"_id": 0})
+    return updated
+
+@api_router.delete("/recurring/{recurring_id}")
+async def delete_recurring(recurring_id: str, user: dict = Depends(get_current_user)):
+    await db.recurring.delete_one({"id": recurring_id, "user_id": user["user_id"]})
+    return {"message": "Deleted"}
+
+@api_router.post("/recurring/{recurring_id}/generate")
+async def generate_from_recurring(recurring_id: str, user: dict = Depends(get_current_user)):
+    tmpl = await db.recurring.find_one({"id": recurring_id, "user_id": user["user_id"]}, {"_id": 0})
+    if not tmpl:
+        raise HTTPException(status_code=404, detail="Template not found")
+    count = await db.invoices.count_documents({"user_id": user["user_id"]})
+    items = []
+    subtotal = 0
+    for it in tmpl.get("items", []):
+        amt = (it.get("quantity", 1)) * (it.get("unit_price", 0))
+        items.append({"description": it.get("description", ""), "quantity": it.get("quantity", 1), "unit_price": it.get("unit_price", 0), "amount": amt})
+        subtotal += amt
+    tax_amount = subtotal * (tmpl.get("tax_rate", 0) / 100)
+    inv_id = str(uuid.uuid4())
+    doc = {
+        "id": inv_id, "user_id": user["user_id"],
+        "invoice_number": f"INV-{count + 1:04d}",
+        "client_name": tmpl["client_name"], "client_email": tmpl.get("client_email", ""),
+        "client_address": "", "client_phone": "",
+        "items": items, "currency": tmpl.get("currency", "USD"),
+        "subtotal": subtotal, "tax_rate": tmpl.get("tax_rate", 0),
+        "tax_amount": tax_amount, "total": subtotal + tax_amount,
+        "status": "draft", "due_date": (datetime.now(timezone.utc) + timedelta(days=30)).strftime("%Y-%m-%d"),
+        "notes": tmpl.get("notes", ""), "payment_terms": "Net 30",
+        "from_name": user.get("name", ""), "from_address": "",
+        "portal_token": uuid.uuid4().hex[:16],
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.invoices.insert_one(doc)
+    doc.pop("_id", None)
+    await db.recurring.update_one({"id": recurring_id}, {"$set": {"last_generated": datetime.now(timezone.utc).isoformat()}})
+    await db.notifications.insert_one({
+        "id": str(uuid.uuid4()), "user_id": user["user_id"], "read": False,
+        "message": f'Recurring invoice {doc["invoice_number"]} generated for {tmpl["client_name"]}',
+        "type": "recurring_generated", "ref_id": inv_id,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    })
+    return doc
+
+# ─── Client Portal (Public) ───
+
+@api_router.get("/portal/{token}")
+async def get_portal_invoice(token: str):
+    inv = await db.invoices.find_one({"portal_token": token}, {"_id": 0})
+    if not inv:
+        raise HTTPException(status_code=404, detail="Invoice not found or link expired")
+    safe = {k: v for k, v in inv.items() if k not in ["user_id", "portal_token"]}
+    if not inv.get("portal_viewed"):
+        await db.invoices.update_one({"portal_token": token}, {"$set": {"portal_viewed": True, "portal_viewed_at": datetime.now(timezone.utc).isoformat()}})
+        if inv.get("user_id"):
+            await db.notifications.insert_one({
+                "id": str(uuid.uuid4()), "user_id": inv["user_id"], "read": False,
+                "message": f'Client viewed invoice {inv.get("invoice_number", "")} for {inv.get("client_name", "")}',
+                "type": "portal_viewed", "ref_id": inv.get("id"),
+                "created_at": datetime.now(timezone.utc).isoformat()
+            })
+    return safe
+
+# ─── Notifications ───
+
+@api_router.get("/notifications")
+async def list_notifications(user: dict = Depends(get_current_user)):
+    return await db.notifications.find({"user_id": user["user_id"]}, {"_id": 0}).sort("created_at", -1).to_list(50)
+
+@api_router.post("/notifications/read")
+async def mark_notifications_read(user: dict = Depends(get_current_user)):
+    await db.notifications.update_many({"user_id": user["user_id"], "read": False}, {"$set": {"read": True}})
+    return {"message": "All marked as read"}
+
+# ─── Language ───
+
+@api_router.put("/settings/language")
+async def update_language(data: LanguageUpdate, user: dict = Depends(get_current_user)):
+    await db.users.update_one({"user_id": user["user_id"]}, {"$set": {"language": data.language}})
+    return {"message": "Language updated", "language": data.language}
 
 # ─── Root ───
 

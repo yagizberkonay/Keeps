@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { API, BACKEND_URL } from "@/App";
 import axios from "axios";
-import { ArrowLeft, Download, Send, CheckCircle, Clock, FileText, Pen } from "lucide-react";
+import { ArrowLeft, Download, Send, CheckCircle, Clock, FileText, Pen, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import SignaturePad from "@/components/SignaturePad";
 
@@ -92,6 +92,14 @@ export default function InvoiceDetailPage() {
           <button data-testid="download-pdf-btn" onClick={downloadPdf} className="bg-zinc-100 text-zinc-900 hover:bg-white rounded-lg px-4 py-2 text-sm font-medium flex items-center gap-2 transition-colors shadow-[0_0_15px_rgba(255,255,255,0.1)]">
             <Download className="w-4 h-4" strokeWidth={1.5} /> Download PDF
           </button>
+          {invoice.portal_token && (
+            <button data-testid="copy-portal-link" onClick={() => {
+              navigator.clipboard.writeText(`${window.location.origin}/portal/${invoice.portal_token}`);
+              toast.success("Client portal link copied!");
+            }} className="bg-white/5 text-zinc-300 border border-white/10 hover:bg-white/10 rounded-lg px-4 py-2 text-sm flex items-center gap-2 transition-colors">
+              <ExternalLink className="w-4 h-4" strokeWidth={1.5} /> Copy Portal Link
+            </button>
+          )}
         </div>
       </div>
 

@@ -14,8 +14,12 @@ import ClientsPage from "@/pages/ClientsPage";
 import SettingsPage from "@/pages/SettingsPage";
 import ExpensesPage from "@/pages/ExpensesPage";
 import CompliancePage from "@/pages/CompliancePage";
+import RecurringPage from "@/pages/RecurringPage";
+import ClientPortalPage from "@/pages/ClientPortalPage";
 import Sidebar from "@/components/Sidebar";
 import AIAdvisor from "@/components/AIAdvisor";
+import NotificationBell from "@/components/NotificationBell";
+import { LanguageProvider } from "@/lib/i18n";
 import { Toaster } from "@/components/ui/sonner";
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
@@ -111,7 +115,6 @@ function DashboardLayout({ children }) {
 
   return (
     <div className="min-h-screen page-gradient">
-      {/* Mobile header */}
       {isMobile && (
         <header className="sticky top-0 z-50 flex items-center justify-between px-4 py-3 glass-strong" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
           <button data-testid="mobile-menu-btn" onClick={() => setSidebarOpen(true)} className="text-zinc-400 hover:text-zinc-200 p-1.5 hover:bg-white/5 rounded-lg transition-colors">
@@ -121,18 +124,19 @@ function DashboardLayout({ children }) {
             <svg width="24" height="24" viewBox="0 0 40 40" fill="none"><path d="M8 8L20 20L8 32" stroke="#A18252" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.7"/><path d="M20 8L32 20L20 32" stroke="#D4D4D8" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.5"/></svg>
             <span className="text-sm font-light text-white/90" style={{ fontFamily: 'Outfit' }}>Keeps</span>
           </div>
-          <div className="w-8" />
+          <NotificationBell />
         </header>
       )}
-
       <div className="flex">
-        {/* Overlay for mobile */}
-        {isMobile && sidebarOpen && (
-          <div className="fixed inset-0 bg-black/60 z-40" onClick={() => setSidebarOpen(false)} data-testid="sidebar-overlay" />
-        )}
+        {isMobile && sidebarOpen && <div className="fixed inset-0 bg-black/60 z-40" onClick={() => setSidebarOpen(false)} />}
         <Sidebar isOpen={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} isMobile={isMobile} onClose={() => setSidebarOpen(false)} />
         <main className={`flex-1 transition-all duration-300 min-h-screen ${!isMobile ? (sidebarOpen ? 'ml-[260px]' : 'ml-[72px]') : 'ml-0'}`}>
           <div className="p-4 sm:p-6 lg:p-8 max-w-[1400px]">
+            {!isMobile && (
+              <div className="flex justify-end mb-2">
+                <NotificationBell />
+              </div>
+            )}
             {children}
           </div>
         </main>
@@ -149,10 +153,12 @@ function AppRouter() {
   return (
     <Routes>
       <Route path="/auth" element={<AuthPage />} />
+      <Route path="/portal/:token" element={<ClientPortalPage />} />
       <Route path="/dashboard" element={<ProtectedRoute><DashboardLayout><DashboardPage /></DashboardLayout></ProtectedRoute>} />
       <Route path="/invoices" element={<ProtectedRoute><DashboardLayout><InvoicesPage /></DashboardLayout></ProtectedRoute>} />
       <Route path="/invoices/new" element={<ProtectedRoute><DashboardLayout><InvoiceCreatePage /></DashboardLayout></ProtectedRoute>} />
       <Route path="/invoices/:id" element={<ProtectedRoute><DashboardLayout><InvoiceDetailPage /></DashboardLayout></ProtectedRoute>} />
+      <Route path="/recurring" element={<ProtectedRoute><DashboardLayout><RecurringPage /></DashboardLayout></ProtectedRoute>} />
       <Route path="/taxes" element={<ProtectedRoute><DashboardLayout><TaxPage /></DashboardLayout></ProtectedRoute>} />
       <Route path="/projects" element={<ProtectedRoute><DashboardLayout><ProjectsPage /></DashboardLayout></ProtectedRoute>} />
       <Route path="/projects/new" element={<ProtectedRoute><DashboardLayout><ProjectCreatePage /></DashboardLayout></ProtectedRoute>} />
@@ -169,10 +175,12 @@ function AppRouter() {
 function App() {
   return (
     <BrowserRouter>
-      <AuthProvider>
-        <AppRouter />
-        <Toaster position="top-right" theme="dark" />
-      </AuthProvider>
+      <LanguageProvider>
+        <AuthProvider>
+          <AppRouter />
+          <Toaster position="top-right" theme="dark" />
+        </AuthProvider>
+      </LanguageProvider>
     </BrowserRouter>
   );
 }

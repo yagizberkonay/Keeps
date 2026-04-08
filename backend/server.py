@@ -59,11 +59,16 @@ class InvoiceItem(BaseModel):
 class InvoiceCreate(BaseModel):
     client_name: str
     client_email: str = ""
+    client_address: str = ""
+    client_phone: str = ""
     items: List[InvoiceItem] = []
     currency: str = "USD"
     tax_rate: float = 0
     due_date: str = ""
     notes: str = ""
+    payment_terms: str = "Net 30"
+    from_name: str = ""
+    from_address: str = ""
 
 class InvoiceOut(BaseModel):
     id: str
@@ -98,6 +103,17 @@ class ClientCreate(BaseModel):
     email: str = ""
     company: str = ""
     phone: str = ""
+    address: str = ""
+    website: str = ""
+    notes: str = ""
+
+class ProfileUpdate(BaseModel):
+    name: str = ""
+    company: str = ""
+
+class PasswordChange(BaseModel):
+    current_password: str
+    new_password: str
 
 class TaxCalcRequest(BaseModel):
     revenue: float
@@ -326,6 +342,8 @@ async def create_invoice(data: InvoiceCreate, user: dict = Depends(get_current_u
         "invoice_number": inv_number,
         "client_name": data.client_name,
         "client_email": data.client_email,
+        "client_address": data.client_address,
+        "client_phone": data.client_phone,
         "items": items,
         "currency": data.currency,
         "subtotal": subtotal,
@@ -335,6 +353,9 @@ async def create_invoice(data: InvoiceCreate, user: dict = Depends(get_current_u
         "status": "draft",
         "due_date": data.due_date or (datetime.now(timezone.utc) + timedelta(days=30)).strftime("%Y-%m-%d"),
         "notes": data.notes,
+        "payment_terms": data.payment_terms,
+        "from_name": data.from_name or user.get("name", ""),
+        "from_address": data.from_address,
         "created_at": now
     }
     await db.invoices.insert_one(doc)
@@ -507,11 +528,23 @@ async def create_client(data: ClientCreate, user: dict = Depends(get_current_use
         "email": data.email,
         "company": data.company,
         "phone": data.phone,
+        "address": data.address,
+        "website": data.website,
+        "notes": data.notes,
         "created_at": datetime.now(timezone.utc).isoformat()
     }
     await db.clients.insert_one(doc)
     doc.pop("_id", None)
     return doc
+
+# ─── Client Delete ───
+
+@api_router.delete("/clients/{client_id}")
+async def delete_client(client_id: str, user: dict = Depends(get_current_user)):
+    result = await db.clients.delete_one({"id": client_id, "user_id": user["user_id"]})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Client not found")
+    return {"message": "Deleted"}
 
 # ─── FX Rates ───
 
@@ -564,6 +597,213 @@ async def ai_chat(data: ChatRequest, user: dict = Depends(get_current_user)):
 async def ai_history(user: dict = Depends(get_current_user)):
     chats = await db.ai_chats.find({"user_id": user["user_id"]}, {"_id": 0}).sort("created_at", 1).to_list(100)
     return chats
+
+# ─── Invoice PDF ───
+
+@api_router.get("/invoices/{invoice_id}/pdf")
+async def get_invoice_pdf(invoice_id: str, user: dict = Depends(get_current_user)):
+    from reportlab.lib import colors
+    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.units import mm
+    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Spacer, Paragraph
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.enums import TA_RIGHT, TA_LEFT, TA_CENTER
+    from starlette.responses import StreamingResponse
+
+    inv = await db.invoices.find_one({"id": invoice_id, "user_id": user["user_id"]}, {"_id": 0})
+    if not inv:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+
+    buf = BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=A4, leftMargin=25*mm, rightMargin=25*mm, topMargin=20*mm, bottomMargin=20*mm)
+
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle('InvTitle', parent=styles['Heading1'], fontSize=28, textColor=colors.HexColor('#1a1a1a'), spaceAfter=4, fontName='Helvetica-Bold')
+    label_style = ParagraphStyle('Label', parent=styles['Normal'], fontSize=7, textColor=colors.HexColor('#999999'), fontName='Helvetica-Bold', spaceAfter=2)
+    value_style = ParagraphStyle('Value', parent=styles['Normal'], fontSize=10, textColor=colors.HexColor('#333333'), fontName='Helvetica')
+    small_style = ParagraphStyle('Small', parent=styles['Normal'], fontSize=8, textColor=colors.HexColor('#888888'), fontName='Helvetica')
+    center_style = ParagraphStyle('Center', parent=small_style, alignment=TA_CENTER)
+
+    elements = []
+
+    # Header
+    header_data = [
+        [Paragraph('INVOICE', title_style), Paragraph('<b>Keeps</b><br/><font size="7" color="#999">Hermes Software Inc.</font>', ParagraphStyle('Brand', parent=value_style, alignment=TA_RIGHT))],
+    ]
+    header_table = Table(header_data, colWidths=[doc.width*0.6, doc.width*0.4])
+    header_table.setStyle(TableStyle([('VALIGN', (0,0), (-1,-1), 'TOP'), ('TOPPADDING', (0,0), (-1,-1), 0), ('BOTTOMPADDING', (0,0), (-1,-1), 0)]))
+    elements.append(header_table)
+    elements.append(Spacer(1, 3*mm))
+
+    # Invoice info row
+    info_data = [[
+        Paragraph(f'<font size="7" color="#999">INVOICE NUMBER</font><br/><font size="10" color="#333">{inv.get("invoice_number", "")}</font>', value_style),
+        Paragraph(f'<font size="7" color="#999">DATE</font><br/><font size="10" color="#333">{inv.get("created_at", "")[:10]}</font>', value_style),
+        Paragraph(f'<font size="7" color="#999">DUE DATE</font><br/><font size="10" color="#333">{inv.get("due_date", "")}</font>', value_style),
+        Paragraph(f'<font size="7" color="#999">STATUS</font><br/><font size="10" color="#333">{inv.get("status", "draft").upper()}</font>', value_style),
+    ]]
+    info_table = Table(info_data, colWidths=[doc.width*0.25]*4)
+    info_table.setStyle(TableStyle([
+        ('VALIGN', (0,0), (-1,-1), 'TOP'),
+        ('TOPPADDING', (0,0), (-1,-1), 8),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 8),
+        ('LINEABOVE', (0,0), (-1,0), 0.5, colors.HexColor('#e0e0e0')),
+        ('LINEBELOW', (0,0), (-1,0), 0.5, colors.HexColor('#e0e0e0')),
+    ]))
+    elements.append(info_table)
+    elements.append(Spacer(1, 6*mm))
+
+    # Bill To
+    elements.append(Paragraph('BILL TO', label_style))
+    elements.append(Paragraph(f'<b>{inv.get("client_name", "")}</b>', value_style))
+    if inv.get("client_email"): elements.append(Paragraph(inv["client_email"], small_style))
+    if inv.get("client_address"): elements.append(Paragraph(inv["client_address"], small_style))
+    if inv.get("client_phone"): elements.append(Paragraph(inv["client_phone"], small_style))
+    elements.append(Spacer(1, 8*mm))
+
+    # Items table
+    cur = inv.get("currency", "USD")
+    item_header = ['Description', 'Qty', 'Unit Price', 'Amount']
+    item_data = [item_header]
+    for it in inv.get("items", []):
+        item_data.append([
+            it.get("description", ""),
+            str(it.get("quantity", 0)),
+            f'{cur} {it.get("unit_price", 0):,.2f}',
+            f'{cur} {it.get("amount", 0):,.2f}',
+        ])
+
+    items_table = Table(item_data, colWidths=[doc.width*0.45, doc.width*0.12, doc.width*0.22, doc.width*0.21])
+    items_table.setStyle(TableStyle([
+        ('FONTNAME', (0,0), (-1,0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0,0), (-1,0), 7),
+        ('TEXTCOLOR', (0,0), (-1,0), colors.HexColor('#999999')),
+        ('FONTNAME', (0,1), (-1,-1), 'Helvetica'),
+        ('FONTSIZE', (0,1), (-1,-1), 9),
+        ('TEXTCOLOR', (0,1), (-1,-1), colors.HexColor('#333333')),
+        ('ALIGN', (1,0), (-1,-1), 'RIGHT'),
+        ('TOPPADDING', (0,0), (-1,-1), 8),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 8),
+        ('LINEBELOW', (0,0), (-1,0), 0.5, colors.HexColor('#e0e0e0')),
+        ('LINEBELOW', (0,1), (-1,-2), 0.25, colors.HexColor('#f0f0f0')),
+        ('LINEBELOW', (0,-1), (-1,-1), 0.5, colors.HexColor('#e0e0e0')),
+    ]))
+    elements.append(items_table)
+    elements.append(Spacer(1, 4*mm))
+
+    # Totals
+    totals_data = [
+        ['', '', 'Subtotal', f'{cur} {inv.get("subtotal", 0):,.2f}'],
+        ['', '', f'Tax ({inv.get("tax_rate", 0)}%)', f'{cur} {inv.get("tax_amount", 0):,.2f}'],
+    ]
+    totals_table = Table(totals_data, colWidths=[doc.width*0.45, doc.width*0.12, doc.width*0.22, doc.width*0.21])
+    totals_table.setStyle(TableStyle([
+        ('FONTNAME', (0,0), (-1,-1), 'Helvetica'),
+        ('FONTSIZE', (0,0), (-1,-1), 9),
+        ('TEXTCOLOR', (0,0), (-1,-1), colors.HexColor('#888888')),
+        ('ALIGN', (2,0), (-1,-1), 'RIGHT'),
+        ('TOPPADDING', (0,0), (-1,-1), 4),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 4),
+    ]))
+    elements.append(totals_table)
+
+    # Total line
+    total_data = [['', '', 'TOTAL', f'{cur} {inv.get("total", 0):,.2f}']]
+    total_table = Table(total_data, colWidths=[doc.width*0.45, doc.width*0.12, doc.width*0.22, doc.width*0.21])
+    total_table.setStyle(TableStyle([
+        ('FONTNAME', (2,0), (-1,0), 'Helvetica-Bold'),
+        ('FONTSIZE', (2,0), (2,0), 9),
+        ('FONTSIZE', (3,0), (3,0), 13),
+        ('TEXTCOLOR', (2,0), (-1,0), colors.HexColor('#1a1a1a')),
+        ('ALIGN', (2,0), (-1,0), 'RIGHT'),
+        ('TOPPADDING', (0,0), (-1,0), 8),
+        ('LINEABOVE', (2,0), (-1,0), 1.5, colors.HexColor('#1a1a1a')),
+    ]))
+    elements.append(total_table)
+    elements.append(Spacer(1, 10*mm))
+
+    # Notes
+    if inv.get("notes"):
+        elements.append(Paragraph('NOTES', label_style))
+        elements.append(Paragraph(inv["notes"], small_style))
+        elements.append(Spacer(1, 4*mm))
+
+    if inv.get("payment_terms"):
+        elements.append(Paragraph(f'Payment Terms: {inv["payment_terms"]}', small_style))
+        elements.append(Spacer(1, 8*mm))
+
+    # Footer
+    elements.append(Spacer(1, 10*mm))
+    elements.append(Paragraph('Thank you for your business', center_style))
+    elements.append(Paragraph('Powered by Keeps \u00b7 Hermes Software Inc.', ParagraphStyle('Footer', parent=center_style, fontSize=7, textColor=colors.HexColor('#cccccc'))))
+
+    doc.build(elements)
+    buf.seek(0)
+    return StreamingResponse(buf, media_type="application/pdf", headers={"Content-Disposition": f'attachment; filename="{inv.get("invoice_number", "invoice")}.pdf"'})
+
+# ─── Settings ───
+
+@api_router.put("/settings/profile")
+async def update_profile(data: ProfileUpdate, user: dict = Depends(get_current_user)):
+    update = {}
+    if data.name: update["name"] = data.name
+    if data.company is not None: update["company"] = data.company
+    if update:
+        await db.users.update_one({"user_id": user["user_id"]}, {"$set": update})
+    updated = await db.users.find_one({"user_id": user["user_id"]}, {"_id": 0})
+    return {"user_id": updated["user_id"], "email": updated["email"], "name": updated["name"], "company": updated.get("company", "")}
+
+@api_router.put("/settings/password")
+async def change_password(data: PasswordChange, user: dict = Depends(get_current_user)):
+    user_doc = await db.users.find_one({"user_id": user["user_id"]}, {"_id": 0})
+    if not user_doc or not user_doc.get("password_hash"):
+        raise HTTPException(status_code=400, detail="Password change not available for social login accounts")
+    if not bcrypt.checkpw(data.current_password.encode(), user_doc["password_hash"].encode()):
+        raise HTTPException(status_code=401, detail="Current password is incorrect")
+    new_hash = bcrypt.hashpw(data.new_password.encode(), bcrypt.gensalt()).decode()
+    await db.users.update_one({"user_id": user["user_id"]}, {"$set": {"password_hash": new_hash}})
+    return {"message": "Password changed successfully"}
+
+@api_router.get("/settings/export")
+async def export_data(user: dict = Depends(get_current_user)):
+    uid = user["user_id"]
+    invoices = await db.invoices.find({"user_id": uid}, {"_id": 0}).to_list(10000)
+    projects = await db.projects.find({"user_id": uid}, {"_id": 0}).to_list(10000)
+    clients = await db.clients.find({"user_id": uid}, {"_id": 0}).to_list(10000)
+    vault = await db.tax_vault.find_one({"user_id": uid}, {"_id": 0})
+    chats = await db.ai_chats.find({"user_id": uid}, {"_id": 0}).to_list(10000)
+    return {
+        "exported_at": datetime.now(timezone.utc).isoformat(),
+        "user": {"user_id": uid, "email": user["email"], "name": user["name"], "company": user.get("company", "")},
+        "invoices": invoices,
+        "projects": projects,
+        "clients": clients,
+        "tax_vault": vault,
+        "ai_chats": chats
+    }
+
+@api_router.delete("/settings/data")
+async def delete_all_data(user: dict = Depends(get_current_user)):
+    uid = user["user_id"]
+    await db.invoices.delete_many({"user_id": uid})
+    await db.projects.delete_many({"user_id": uid})
+    await db.clients.delete_many({"user_id": uid})
+    await db.tax_vault.delete_many({"user_id": uid})
+    await db.ai_chats.delete_many({"user_id": uid})
+    return {"message": "All data deleted"}
+
+@api_router.delete("/settings/account")
+async def delete_account(request: Request, response: Response, user: dict = Depends(get_current_user)):
+    uid = user["user_id"]
+    await db.invoices.delete_many({"user_id": uid})
+    await db.projects.delete_many({"user_id": uid})
+    await db.clients.delete_many({"user_id": uid})
+    await db.tax_vault.delete_many({"user_id": uid})
+    await db.ai_chats.delete_many({"user_id": uid})
+    await db.user_sessions.delete_many({"user_id": uid})
+    await db.users.delete_one({"user_id": uid})
+    response.delete_cookie(key="session_token", path="/", secure=True, samesite="none")
+    return {"message": "Account deleted"}
 
 # ─── Root ───
 

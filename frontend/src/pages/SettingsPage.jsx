@@ -2,11 +2,12 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth, API } from "@/App";
 import axios from "axios";
-import { User, Lock, Database, Trash2, Download, Shield, AlertTriangle, Pen } from "lucide-react";
+import { User, Lock, Database, Trash2, Download, Shield, AlertTriangle, Pen, Languages } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import SignaturePad from "@/components/SignaturePad";
+import { useLang } from "@/lib/i18n";
 import { toast } from "sonner";
 
 function ProfileSection() {
@@ -202,22 +203,55 @@ function AccountSection() {
 }
 
 export default function SettingsPage() {
+  const { t, lang, setLang, langs } = useLang();
+
   return (
     <div data-testid="settings-page">
       <div className="mb-8 animate-fade-in">
-        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-light tracking-tight text-white/90" style={{ fontFamily: 'Outfit' }}>Settings</h1>
-        <p className="text-zinc-500 text-sm mt-1">Manage your account and preferences</p>
+        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-light tracking-tight text-white/90" style={{ fontFamily: 'Outfit' }}>{t("settings")}</h1>
+        <p className="text-zinc-500 text-sm mt-1">{t("profile")}</p>
       </div>
 
       <Tabs defaultValue="profile" className="animate-fade-in animate-fade-in-delay-1">
         <TabsList className="bg-white/[0.03] border border-white/10 rounded-xl p-1 mb-8 flex-wrap h-auto" data-testid="settings-tabs">
-          <TabsTrigger value="profile" className="data-[state=active]:bg-white/10 data-[state=active]:text-white rounded-lg text-zinc-500 text-xs">Profile</TabsTrigger>
-          <TabsTrigger value="signature" className="data-[state=active]:bg-white/10 data-[state=active]:text-white rounded-lg text-zinc-500 text-xs">Signature</TabsTrigger>
-          <TabsTrigger value="security" className="data-[state=active]:bg-white/10 data-[state=active]:text-white rounded-lg text-zinc-500 text-xs">Security</TabsTrigger>
-          <TabsTrigger value="data" className="data-[state=active]:bg-white/10 data-[state=active]:text-white rounded-lg text-zinc-500 text-xs">Data</TabsTrigger>
-          <TabsTrigger value="account" className="data-[state=active]:bg-white/10 data-[state=active]:text-white rounded-lg text-zinc-500 text-xs">Account</TabsTrigger>
+          <TabsTrigger value="profile" className="data-[state=active]:bg-white/10 data-[state=active]:text-white rounded-lg text-zinc-500 text-xs">{t("profile")}</TabsTrigger>
+          <TabsTrigger value="language" className="data-[state=active]:bg-white/10 data-[state=active]:text-white rounded-lg text-zinc-500 text-xs">{t("language")}</TabsTrigger>
+          <TabsTrigger value="signature" className="data-[state=active]:bg-white/10 data-[state=active]:text-white rounded-lg text-zinc-500 text-xs">{t("signature")}</TabsTrigger>
+          <TabsTrigger value="security" className="data-[state=active]:bg-white/10 data-[state=active]:text-white rounded-lg text-zinc-500 text-xs">{t("security")}</TabsTrigger>
+          <TabsTrigger value="data" className="data-[state=active]:bg-white/10 data-[state=active]:text-white rounded-lg text-zinc-500 text-xs">{t("data")}</TabsTrigger>
+          <TabsTrigger value="account" className="data-[state=active]:bg-white/10 data-[state=active]:text-white rounded-lg text-zinc-500 text-xs">{t("account")}</TabsTrigger>
         </TabsList>
         <TabsContent value="profile"><ProfileSection /></TabsContent>
+        <TabsContent value="language">
+          <div className="glass-card rounded-2xl p-6" data-testid="settings-language">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center">
+                <Languages className="w-5 h-5 text-zinc-400" strokeWidth={1.5} />
+              </div>
+              <div>
+                <h3 className="text-sm text-zinc-200 font-medium">{t("language")}</h3>
+                <p className="text-[11px] text-zinc-600">{t("select_language")}</p>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+              {Object.entries(langs).map(([code, label]) => (
+                <button
+                  key={code}
+                  data-testid={`settings-lang-${code}`}
+                  onClick={() => { setLang(code); toast.success(`${label}`); }}
+                  className={`flex items-center gap-3 p-4 rounded-xl border transition-all duration-200 ${
+                    lang === code
+                      ? 'bg-white/[0.07] border-white/20 text-white/90 shadow-[0_2px_10px_rgba(0,0,0,0.2)]'
+                      : 'bg-white/[0.02] border-white/5 text-zinc-400 hover:bg-white/[0.04] hover:border-white/10 hover:text-zinc-300'
+                  }`}
+                >
+                  <span className="text-xs font-medium uppercase tracking-wider w-6">{code}</span>
+                  <span className="text-sm">{label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </TabsContent>
         <TabsContent value="signature">
           <SignaturePad />
           <p className="text-xs text-zinc-600 mt-4">Your signature will appear on all downloaded invoice PDFs.</p>

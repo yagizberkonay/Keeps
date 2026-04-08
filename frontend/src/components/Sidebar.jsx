@@ -2,16 +2,19 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/App";
 import {
   LayoutDashboard, FileText, Calculator, FolderKanban, Users,
-  Settings, LogOut, ChevronLeft, ChevronRight, Vault, X
+  Settings, LogOut, ChevronLeft, ChevronRight, Vault, X,
+  Receipt, Globe
 } from "lucide-react";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 const navItems = [
   { path: "/dashboard", label: "Overview", icon: LayoutDashboard },
   { path: "/invoices", label: "Invoices", icon: FileText },
+  { path: "/expenses", label: "Expenses", icon: Receipt },
   { path: "/taxes", label: "Tax Center", icon: Calculator },
   { path: "/projects", label: "Projects", icon: FolderKanban },
   { path: "/clients", label: "Clients", icon: Users },
+  { path: "/compliance", label: "Compliance", icon: Globe },
   { path: "/settings", label: "Settings", icon: Settings },
 ];
 

@@ -130,6 +130,37 @@ class ChatRequest(BaseModel):
     message: str
     session_id: str = ""
 
+class ExpenseCreate(BaseModel):
+    amount: float
+    currency: str = "USD"
+    category: str = "other"
+    description: str = ""
+    vendor: str = ""
+    date: str = ""
+    receipt_data: str = ""
+
+class SignatureSave(BaseModel):
+    signature_data: str
+
+class ComplianceCheckRequest(BaseModel):
+    invoice_id: str
+    country_code: str = "US"
+
+COMPLIANCE_RULES = {
+    "US": {"name": "United States", "requirements": ["seller_name", "buyer_name", "invoice_number", "date", "line_items", "total"], "tax_id_required": False, "notes": "No mandatory VAT. State sales tax may apply."},
+    "GB": {"name": "United Kingdom", "requirements": ["seller_name", "buyer_name", "invoice_number", "date", "line_items", "total", "vat_number", "tax_breakdown"], "tax_id_required": True, "notes": "VAT number required for VAT-registered businesses. Standard rate 20%."},
+    "DE": {"name": "Germany", "requirements": ["seller_name", "seller_address", "buyer_name", "buyer_address", "invoice_number", "date", "line_items", "total", "tax_id", "tax_breakdown"], "tax_id_required": True, "notes": "Steuernummer or USt-IdNr required. Standard VAT 19%."},
+    "FR": {"name": "France", "requirements": ["seller_name", "seller_address", "buyer_name", "invoice_number", "date", "line_items", "total", "siret", "tax_breakdown"], "tax_id_required": True, "notes": "SIRET number required. Standard TVA 20%."},
+    "TR": {"name": "Turkey", "requirements": ["seller_name", "seller_address", "buyer_name", "buyer_address", "invoice_number", "date", "line_items", "total", "tax_id", "tax_breakdown"], "tax_id_required": True, "notes": "VKN/TCKN required. Standard KDV 20%. E-invoice mandatory for most businesses."},
+    "JP": {"name": "Japan", "requirements": ["seller_name", "buyer_name", "invoice_number", "date", "line_items", "total", "registration_number"], "tax_id_required": True, "notes": "Qualified Invoice System. Registration number required. Standard consumption tax 10%."},
+    "AU": {"name": "Australia", "requirements": ["seller_name", "buyer_name", "invoice_number", "date", "line_items", "total", "abn"], "tax_id_required": True, "notes": "ABN required. GST 10% applies."},
+    "CA": {"name": "Canada", "requirements": ["seller_name", "buyer_name", "invoice_number", "date", "line_items", "total"], "tax_id_required": False, "notes": "GST/HST number required if registered. Rates vary by province."},
+    "NL": {"name": "Netherlands", "requirements": ["seller_name", "seller_address", "buyer_name", "invoice_number", "date", "line_items", "total", "vat_number", "tax_breakdown"], "tax_id_required": True, "notes": "BTW-nummer required. Standard BTW 21%."},
+    "BR": {"name": "Brazil", "requirements": ["seller_name", "seller_address", "buyer_name", "buyer_address", "invoice_number", "date", "line_items", "total", "cnpj", "tax_breakdown"], "tax_id_required": True, "notes": "CNPJ/CPF required. NF-e electronic invoice mandatory."},
+}
+
+EXPENSE_CATEGORIES = ["office", "travel", "equipment", "software", "marketing", "food", "utilities", "insurance", "professional_services", "rent", "subscriptions", "transportation", "communication", "other"]
+
 # ─── Auth Helpers ───
 
 async def get_current_user(request: Request) -> dict:
@@ -732,6 +763,24 @@ async def get_invoice_pdf(invoice_id: str, user: dict = Depends(get_current_user
         elements.append(Paragraph(f'Payment Terms: {inv["payment_terms"]}', small_style))
         elements.append(Spacer(1, 8*mm))
 
+    # Signature
+    sig_doc = await db.signatures.find_one({"user_id": user["user_id"]}, {"_id": 0})
+    if sig_doc and sig_doc.get("signature_data"):
+        import base64 as b64
+        try:
+            sig_b64 = sig_doc["signature_data"]
+            if "," in sig_b64:
+                sig_b64 = sig_b64.split(",", 1)[1]
+            sig_bytes = b64.b64decode(sig_b64)
+            sig_buf = BytesIO(sig_bytes)
+            from reportlab.platypus import Image as RLImage
+            elements.append(Spacer(1, 6*mm))
+            elements.append(Paragraph('AUTHORIZED SIGNATURE', label_style))
+            sig_img = RLImage(sig_buf, width=50*mm, height=20*mm)
+            elements.append(sig_img)
+        except Exception as sig_err:
+            logger.warning(f"Could not embed signature: {sig_err}")
+
     # Footer
     elements.append(Spacer(1, 10*mm))
     elements.append(Paragraph('Thank you for your business', center_style))
@@ -804,6 +853,154 @@ async def delete_account(request: Request, response: Response, user: dict = Depe
     await db.users.delete_one({"user_id": uid})
     response.delete_cookie(key="session_token", path="/", secure=True, samesite="none")
     return {"message": "Account deleted"}
+
+# ─── Expenses ───
+
+@api_router.get("/expenses")
+async def list_expenses(user: dict = Depends(get_current_user)):
+    return await db.expenses.find({"user_id": user["user_id"]}, {"_id": 0}).sort("date", -1).to_list(10000)
+
+@api_router.post("/expenses")
+async def create_expense(data: ExpenseCreate, user: dict = Depends(get_current_user)):
+    doc = {
+        "id": str(uuid.uuid4()),
+        "user_id": user["user_id"],
+        "amount": data.amount,
+        "currency": data.currency,
+        "category": data.category,
+        "description": data.description,
+        "vendor": data.vendor,
+        "date": data.date or datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+        "receipt_data": data.receipt_data[:500000] if data.receipt_data else "",
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.expenses.insert_one(doc)
+    doc.pop("_id", None)
+    return doc
+
+@api_router.delete("/expenses/{expense_id}")
+async def delete_expense(expense_id: str, user: dict = Depends(get_current_user)):
+    result = await db.expenses.delete_one({"id": expense_id, "user_id": user["user_id"]})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Expense not found")
+    return {"message": "Deleted"}
+
+@api_router.get("/expenses/summary")
+async def expenses_summary(user: dict = Depends(get_current_user)):
+    expenses = await db.expenses.find({"user_id": user["user_id"]}, {"_id": 0}).to_list(10000)
+    total = sum(e.get("amount", 0) for e in expenses)
+    by_category = {}
+    by_month = {}
+    for e in expenses:
+        cat = e.get("category", "other")
+        by_category[cat] = by_category.get(cat, 0) + e.get("amount", 0)
+        month = e.get("date", "")[:7]
+        if month:
+            by_month[month] = by_month.get(month, 0) + e.get("amount", 0)
+    return {
+        "total": round(total, 2),
+        "count": len(expenses),
+        "by_category": [{"category": k, "amount": round(v, 2)} for k, v in sorted(by_category.items(), key=lambda x: -x[1])],
+        "by_month": [{"month": k, "amount": round(v, 2)} for k, v in sorted(by_month.items())][-6:]
+    }
+
+# ─── Receipt OCR ───
+
+@api_router.post("/receipts/scan")
+async def scan_receipt(request: Request, user: dict = Depends(get_current_user)):
+    from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
+    body = await request.json()
+    image_base64 = body.get("image_base64", "")
+    if not image_base64:
+        raise HTTPException(status_code=400, detail="image_base64 required")
+    if "," in image_base64:
+        image_base64 = image_base64.split(",", 1)[1]
+    chat = LlmChat(
+        api_key=EMERGENT_LLM_KEY,
+        session_id=f"ocr_{uuid.uuid4().hex[:8]}",
+        system_message="You are a receipt OCR assistant. Extract structured data from receipt images. Always respond in valid JSON format only, no markdown."
+    ).with_model("gemini", "gemini-3-flash-preview")
+    prompt = 'Extract this receipt data as JSON: {"vendor": "store name", "amount": number, "currency": "USD", "date": "YYYY-MM-DD", "category": "one of: office, travel, equipment, software, marketing, food, utilities, insurance, professional_services, rent, subscriptions, transportation, communication, other", "items": [{"description": "item", "amount": number}], "description": "brief summary"}. If unclear, use best guess.'
+    image_content = ImageContent(image_base64=image_base64)
+    user_message = UserMessage(text=prompt, file_contents=[image_content])
+    try:
+        response = await chat.send_message(user_message)
+        import json as json_mod
+        cleaned = response.strip()
+        if cleaned.startswith("```"):
+            cleaned = cleaned.split("\n", 1)[1] if "\n" in cleaned else cleaned[3:]
+            cleaned = cleaned.rsplit("```", 1)[0]
+        parsed = json_mod.loads(cleaned)
+        return {"success": True, "data": parsed, "raw": response}
+    except Exception as e:
+        logger.error(f"Receipt OCR error: {e}")
+        return {"success": False, "data": None, "raw": str(e), "error": "Could not parse receipt. Please enter details manually."}
+
+# ─── Digital Signature ───
+
+@api_router.get("/signature")
+async def get_signature(user: dict = Depends(get_current_user)):
+    sig = await db.signatures.find_one({"user_id": user["user_id"]}, {"_id": 0})
+    return sig or {"user_id": user["user_id"], "signature_data": ""}
+
+@api_router.post("/signature")
+async def save_signature(data: SignatureSave, user: dict = Depends(get_current_user)):
+    await db.signatures.update_one(
+        {"user_id": user["user_id"]},
+        {"$set": {"signature_data": data.signature_data, "updated_at": datetime.now(timezone.utc).isoformat()}},
+        upsert=True
+    )
+    return {"message": "Signature saved"}
+
+# ─── Global Compliance ───
+
+@api_router.get("/compliance/countries")
+async def get_compliance_countries(user: dict = Depends(get_current_user)):
+    return [{"code": k, **v} for k, v in COMPLIANCE_RULES.items()]
+
+@api_router.post("/compliance/check")
+async def check_compliance(data: ComplianceCheckRequest, user: dict = Depends(get_current_user)):
+    rules = COMPLIANCE_RULES.get(data.country_code)
+    if not rules:
+        raise HTTPException(status_code=400, detail="Country not supported")
+    inv = await db.invoices.find_one({"id": data.invoice_id, "user_id": user["user_id"]}, {"_id": 0})
+    if not inv:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    checks = []
+    field_map = {
+        "seller_name": bool(inv.get("from_name")),
+        "seller_address": bool(inv.get("from_address")),
+        "buyer_name": bool(inv.get("client_name")),
+        "buyer_address": bool(inv.get("client_address")),
+        "invoice_number": bool(inv.get("invoice_number")),
+        "date": bool(inv.get("created_at")),
+        "line_items": len(inv.get("items", [])) > 0,
+        "total": inv.get("total", 0) > 0,
+        "tax_breakdown": inv.get("tax_rate", 0) > 0,
+    }
+    optional_ids = ["vat_number", "tax_id", "siret", "abn", "cnpj", "registration_number"]
+    for req in rules["requirements"]:
+        if req in field_map:
+            checks.append({"field": req, "status": "pass" if field_map[req] else "fail", "description": f"{'Present' if field_map[req] else 'Missing'}: {req.replace('_', ' ').title()}"})
+        elif req in optional_ids:
+            checks.append({"field": req, "status": "warning", "description": f"Tax ID ({req.replace('_', ' ').upper()}) should be included for compliance"})
+        else:
+            checks.append({"field": req, "status": "info", "description": f"{req.replace('_', ' ').title()} recommended"})
+    passed = sum(1 for c in checks if c["status"] == "pass")
+    total = len(checks)
+    return {
+        "country": rules["name"],
+        "country_code": data.country_code,
+        "invoice_number": inv.get("invoice_number"),
+        "score": round((passed / total) * 100) if total > 0 else 0,
+        "checks": checks,
+        "notes": rules.get("notes", ""),
+        "tax_id_required": rules.get("tax_id_required", False)
+    }
+
+@api_router.get("/expenses/categories")
+async def get_expense_categories(user: dict = Depends(get_current_user)):
+    return EXPENSE_CATEGORIES
 
 # ─── Root ───
 

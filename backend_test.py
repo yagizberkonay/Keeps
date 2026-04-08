@@ -342,8 +342,218 @@ class KeepsAPITester:
         
         return success
 
+    def test_expenses_crud(self):
+        """Test expense CRUD operations (Phase 3)"""
+        print("\n💰 Testing Expense Operations...")
+        
+        # Create expense
+        expense_data = {
+            "amount": 125.50,
+            "currency": "USD",
+            "category": "office",
+            "description": "Office supplies",
+            "vendor": "Office Depot",
+            "date": "2024-01-15",
+            "receipt_data": ""
+        }
+        
+        success, expense = self.run_test(
+            "Create expense",
+            "POST",
+            "expenses",
+            200,
+            data=expense_data
+        )
+        
+        if not success:
+            return False
+            
+        expense_id = expense.get('id')
+        if not expense_id:
+            print("❌ No expense ID returned")
+            return False
+            
+        # List expenses
+        success, expenses = self.run_test(
+            "List expenses",
+            "GET",
+            "expenses",
+            200
+        )
+        
+        if not success:
+            return False
+            
+        # Get expense summary
+        success, summary = self.run_test(
+            "Get expense summary",
+            "GET",
+            "expenses/summary",
+            200
+        )
+        
+        if not success:
+            return False
+            
+        # Verify summary structure
+        if not isinstance(summary, dict) or 'total' not in summary or 'by_category' not in summary:
+            print("❌ Expense summary format invalid")
+            return False
+            
+        # Delete expense
+        success, delete_response = self.run_test(
+            "Delete expense",
+            "DELETE",
+            f"expenses/{expense_id}",
+            200
+        )
+        
+        return success
+
+    def test_receipt_ocr(self):
+        """Test receipt OCR functionality (Phase 3)"""
+        print("\n📷 Testing Receipt OCR...")
+        
+        # Simple base64 test image (1x1 pixel PNG)
+        test_image_b64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg=="
+        
+        ocr_data = {
+            "image_base64": f"data:image/png;base64,{test_image_b64}"
+        }
+        
+        success, response = self.run_test(
+            "Scan receipt with OCR",
+            "POST",
+            "receipts/scan",
+            200,
+            data=ocr_data
+        )
+        
+        if success and 'success' in response:
+            print(f"✅ OCR response: {response.get('success')}")
+            return True
+        
+        return success
+
+    def test_digital_signature(self):
+        """Test digital signature functionality (Phase 3)"""
+        print("\n✍️ Testing Digital Signature...")
+        
+        # Get existing signature
+        success, signature = self.run_test(
+            "Get signature",
+            "GET",
+            "signature",
+            200
+        )
+        
+        if not success:
+            return False
+            
+        # Save signature
+        signature_data = {
+            "signature_data": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg=="
+        }
+        
+        success, save_response = self.run_test(
+            "Save signature",
+            "POST",
+            "signature",
+            200,
+            data=signature_data
+        )
+        
+        if success and 'message' in save_response:
+            print("✅ Signature saved successfully")
+            return True
+        
+        return success
+
+    def test_global_compliance(self):
+        """Test global compliance functionality (Phase 3)"""
+        print("\n🌍 Testing Global Compliance...")
+        
+        # Get compliance countries
+        success, countries = self.run_test(
+            "Get compliance countries",
+            "GET",
+            "compliance/countries",
+            200
+        )
+        
+        if not success:
+            return False
+            
+        if not isinstance(countries, list) or len(countries) < 10:
+            print(f"❌ Expected at least 10 countries, got {len(countries) if isinstance(countries, list) else 'invalid format'}")
+            return False
+            
+        print(f"✅ Found {len(countries)} compliance countries")
+        
+        # Create a test invoice for compliance check
+        invoice_data = {
+            "client_name": "Test Compliance Client",
+            "client_email": "compliance@test.com",
+            "items": [{"description": "Test Service", "quantity": 1, "unit_price": 100}],
+            "currency": "USD",
+            "tax_rate": 10
+        }
+        
+        success, invoice = self.run_test(
+            "Create test invoice for compliance",
+            "POST",
+            "invoices",
+            200,
+            data=invoice_data
+        )
+        
+        if not success:
+            return False
+            
+        invoice_id = invoice.get('id')
+        if not invoice_id:
+            print("❌ No invoice ID returned for compliance test")
+            return False
+            
+        # Run compliance check
+        compliance_data = {
+            "invoice_id": invoice_id,
+            "country_code": "US"
+        }
+        
+        success, compliance_result = self.run_test(
+            "Run compliance check",
+            "POST",
+            "compliance/check",
+            200,
+            data=compliance_data
+        )
+        
+        if success and 'score' in compliance_result and 'checks' in compliance_result:
+            print(f"✅ Compliance check completed with score: {compliance_result.get('score')}%")
+            return True
+        
+        return success
+
+    def test_expense_categories(self):
+        """Test expense categories endpoint (Phase 3)"""
+        print("\n📋 Testing Expense Categories...")
+        
+        success, categories = self.run_test(
+            "Get expense categories",
+            "GET",
+            "expenses/categories",
+            200
+        )
+        
+        if success and isinstance(categories, list) and len(categories) > 0:
+            print(f"✅ Found {len(categories)} expense categories")
+            return True
+        
+        return success
+
 def main():
-    print("🚀 Starting Keeps API Testing (Iteration 2)")
+    print("🚀 Starting Keeps API Testing (Phase 3)")
     print("=" * 50)
     
     tester = KeepsAPITester()
@@ -357,13 +567,19 @@ def main():
         print("❌ Auth verification failed")
         return 1
     
-    # Test all CRUD operations
+    # Test all CRUD operations including Phase 3 features
     tests = [
         tester.test_dashboard_summary,
         tester.test_invoice_crud,
         tester.test_project_crud,
         tester.test_client_crud,
         tester.test_settings_endpoints,
+        # Phase 3 features
+        tester.test_expenses_crud,
+        tester.test_receipt_ocr,
+        tester.test_digital_signature,
+        tester.test_global_compliance,
+        tester.test_expense_categories,
         tester.test_ai_chat
     ]
     

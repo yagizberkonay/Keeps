@@ -2,8 +2,9 @@ import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { API, BACKEND_URL } from "@/App";
 import axios from "axios";
-import { ArrowLeft, Download, Send, CheckCircle, Clock, FileText } from "lucide-react";
+import { ArrowLeft, Download, Send, CheckCircle, Clock, FileText, Pen } from "lucide-react";
 import { toast } from "sonner";
+import SignaturePad from "@/components/SignaturePad";
 
 const statusConfig = {
   draft: { label: "Draft", color: "bg-zinc-500/15 text-zinc-400", icon: Clock },
@@ -17,13 +18,18 @@ export default function InvoiceDetailPage() {
   const navigate = useNavigate();
   const [invoice, setInvoice] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [signature, setSignature] = useState(null);
 
   useEffect(() => {
     (async () => {
       try {
-        const res = await axios.get(`${API}/invoices`, { withCredentials: true });
-        const inv = res.data.find(i => i.id === id);
+        const [invRes, sigRes] = await Promise.all([
+          axios.get(`${API}/invoices`, { withCredentials: true }),
+          axios.get(`${API}/signature`, { withCredentials: true })
+        ]);
+        const inv = invRes.data.find(i => i.id === id);
         if (inv) setInvoice(inv); else navigate("/invoices");
+        if (sigRes.data?.signature_data) setSignature(sigRes.data.signature_data);
       } catch { navigate("/invoices"); }
       finally { setLoading(false); }
     })();
@@ -171,11 +177,25 @@ export default function InvoiceDetailPage() {
           {invoice.payment_terms && (
             <p className="text-xs text-zinc-400">Payment Terms: {invoice.payment_terms}</p>
           )}
+
+          {/* Signature */}
+          {signature && (
+            <div className="mt-6 pt-4 border-t border-zinc-100">
+              <p className="text-[10px] uppercase tracking-widest text-zinc-400 font-medium mb-2">Authorized Signature</p>
+              <img src={signature} alt="Signature" className="h-12 object-contain" />
+            </div>
+          )}
+
           <div className="mt-8 pt-4 border-t border-zinc-100 text-center">
             <p className="text-[10px] text-zinc-400">Thank you for your business</p>
             <p className="text-[9px] text-zinc-300 mt-1">Powered by Keeps &middot; Hermes Software Inc.</p>
           </div>
         </div>
+      </div>
+
+      {/* Signature Management */}
+      <div className="mt-6 max-w-3xl mx-auto animate-fade-in animate-fade-in-delay-2">
+        <SignaturePad onSave={(data) => setSignature(data)} />
       </div>
     </div>
   );

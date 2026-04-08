@@ -2,10 +2,11 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth, API } from "@/App";
 import axios from "axios";
-import { User, Lock, Database, Trash2, Download, Shield, AlertTriangle } from "lucide-react";
+import { User, Lock, Database, Trash2, Download, Shield, AlertTriangle, Pen } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import SignaturePad from "@/components/SignaturePad";
 import { toast } from "sonner";
 
 function ProfileSection() {
@@ -211,11 +212,16 @@ export default function SettingsPage() {
       <Tabs defaultValue="profile" className="animate-fade-in animate-fade-in-delay-1">
         <TabsList className="bg-white/[0.03] border border-white/10 rounded-xl p-1 mb-8 flex-wrap h-auto" data-testid="settings-tabs">
           <TabsTrigger value="profile" className="data-[state=active]:bg-white/10 data-[state=active]:text-white rounded-lg text-zinc-500 text-xs">Profile</TabsTrigger>
+          <TabsTrigger value="signature" className="data-[state=active]:bg-white/10 data-[state=active]:text-white rounded-lg text-zinc-500 text-xs">Signature</TabsTrigger>
           <TabsTrigger value="security" className="data-[state=active]:bg-white/10 data-[state=active]:text-white rounded-lg text-zinc-500 text-xs">Security</TabsTrigger>
           <TabsTrigger value="data" className="data-[state=active]:bg-white/10 data-[state=active]:text-white rounded-lg text-zinc-500 text-xs">Data</TabsTrigger>
           <TabsTrigger value="account" className="data-[state=active]:bg-white/10 data-[state=active]:text-white rounded-lg text-zinc-500 text-xs">Account</TabsTrigger>
         </TabsList>
         <TabsContent value="profile"><ProfileSection /></TabsContent>
+        <TabsContent value="signature">
+          <SignaturePad />
+          <p className="text-xs text-zinc-600 mt-4">Your signature will appear on all downloaded invoice PDFs.</p>
+        </TabsContent>
         <TabsContent value="security"><SecuritySection /></TabsContent>
         <TabsContent value="data"><DataSection /></TabsContent>
         <TabsContent value="account"><AccountSection /></TabsContent>

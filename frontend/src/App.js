@@ -12,6 +12,8 @@ import ProjectsPage from "@/pages/ProjectsPage";
 import ProjectCreatePage from "@/pages/ProjectCreatePage";
 import ClientsPage from "@/pages/ClientsPage";
 import SettingsPage from "@/pages/SettingsPage";
+import ExpensesPage from "@/pages/ExpensesPage";
+import CompliancePage from "@/pages/CompliancePage";
 import Sidebar from "@/components/Sidebar";
 import AIAdvisor from "@/components/AIAdvisor";
 import { Toaster } from "@/components/ui/sonner";
@@ -155,6 +157,8 @@ function AppRouter() {
       <Route path="/projects" element={<ProtectedRoute><DashboardLayout><ProjectsPage /></DashboardLayout></ProtectedRoute>} />
       <Route path="/projects/new" element={<ProtectedRoute><DashboardLayout><ProjectCreatePage /></DashboardLayout></ProtectedRoute>} />
       <Route path="/clients" element={<ProtectedRoute><DashboardLayout><ClientsPage /></DashboardLayout></ProtectedRoute>} />
+      <Route path="/expenses" element={<ProtectedRoute><DashboardLayout><ExpensesPage /></DashboardLayout></ProtectedRoute>} />
+      <Route path="/compliance" element={<ProtectedRoute><DashboardLayout><CompliancePage /></DashboardLayout></ProtectedRoute>} />
       <Route path="/settings" element={<ProtectedRoute><DashboardLayout><SettingsPage /></DashboardLayout></ProtectedRoute>} />
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
       <Route path="*" element={<Navigate to="/dashboard" replace />} />

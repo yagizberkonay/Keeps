@@ -12,7 +12,7 @@ export default function Sidebar({ isOpen, onToggle, isMobile, onClose }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
-  const { t } = useLang();
+  const { t, lang, setLang, langs } = useLang();
 
   const navItems = [
     { path: "/dashboard", label: t("overview"), icon: LayoutDashboard },

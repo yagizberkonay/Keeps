@@ -33,10 +33,14 @@ function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const checkAuth = useCallback(async () => {
+  const checkAuth = useCallback(() => {
     try {
-      const res = await axios.get(`${API}/auth/me`, { withCredentials: true });
-      setUser(res.data);
+      const stored = localStorage.getItem('keeps_user');
+      if (stored) {
+        setUser(JSON.parse(stored));
+      } else {
+        setUser(null);
+      }
     } catch { setUser(null); }
     finally { setLoading(false); }
   }, []);
@@ -46,9 +50,12 @@ function AuthProvider({ children }) {
     checkAuth();
   }, [checkAuth]);
 
-  const login = (userData) => setUser(userData);
+  const login = (userData) => {
+    localStorage.setItem('keeps_user', JSON.stringify(userData));
+    setUser(userData);
+  }
   const logout = async () => {
-    try { await axios.post(`${API}/auth/logout`, {}, { withCredentials: true }); } catch {}
+    localStorage.removeItem('keeps_user');
     setUser(null);
   };
 

@@ -18,14 +18,46 @@ export default function AuthPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      const endpoint = isLogin ? "/auth/login" : "/auth/register";
-      const payload = isLogin ? { email: form.email, password: form.password } : form;
-      const res = await axios.post(`${API}${endpoint}`, payload, { withCredentials: true });
-      login(res.data);
-      toast.success(isLogin ? "Welcome back!" : "Account created successfully");
-      navigate("/dashboard", { replace: true });
+      // Simulated Local Auth using localStorage
+      const usersStr = localStorage.getItem("keeps_users") || "[]";
+      const users = JSON.parse(usersStr);
+
+      // Simple delay to show loading state
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      if (isLogin) {
+        const existingUser = users.find(u => u.email === form.email && u.password === form.password);
+        if (existingUser) {
+          const { password, ...userData } = existingUser;
+          login(userData);
+          toast.success("Welcome back!");
+          navigate("/dashboard", { replace: true });
+        } else {
+          toast.error("Invalid email or password");
+        }
+      } else {
+        const userExists = users.some(u => u.email === form.email);
+        if (userExists) {
+          toast.error("User with this email already exists");
+        } else {
+          const newUser = {
+            id: Date.now().toString(),
+            email: form.email,
+            password: form.password,
+            name: form.name,
+            company: form.company
+          };
+          users.push(newUser);
+          localStorage.setItem("keeps_users", JSON.stringify(users));
+          
+          const { password, ...userData } = newUser;
+          login(userData);
+          toast.success("Account created successfully");
+          navigate("/dashboard", { replace: true });
+        }
+      }
     } catch (err) {
-      toast.error(err.response?.data?.detail || "Authentication failed");
+      toast.error("Authentication failed");
     } finally {
       setLoading(false);
     }

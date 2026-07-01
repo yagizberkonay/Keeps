@@ -22,7 +22,7 @@ client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
 JWT_SECRET = os.environ.get('JWT_SECRET', 'keeps_jwt_secret_default')
-EMERGENT_LLM_KEY = os.environ.get('EMERGENT_LLM_KEY', '')
+LLM_KEY = os.environ.get('LLM_KEY', '')
 
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
@@ -627,7 +627,7 @@ async def ai_chat(data: ChatRequest, user: dict = Depends(get_current_user)):
         "Format important numbers and percentages clearly. Use bullet points for lists."
     )
     chat = LlmChat(
-        api_key=EMERGENT_LLM_KEY,
+        api_key=LLM_KEY,
         session_id=session_id,
         system_message=system_msg
     ).with_model("gemini", "gemini-3-flash-preview")
@@ -939,7 +939,7 @@ async def scan_receipt(request: Request, user: dict = Depends(get_current_user))
     if "," in image_base64:
         image_base64 = image_base64.split(",", 1)[1]
     chat = LlmChat(
-        api_key=EMERGENT_LLM_KEY,
+        api_key=LLM_KEY,
         session_id=f"ocr_{uuid.uuid4().hex[:8]}",
         system_message="You are a receipt OCR assistant. Extract structured data from receipt images. Always respond in valid JSON format only, no markdown."
     ).with_model("gemini", "gemini-3-flash-preview")
@@ -1158,3 +1158,7 @@ app.add_middleware(
 @app.on_event("shutdown")
 async def shutdown_db_client():
     client.close()
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)

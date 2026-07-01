@@ -1,70 +1,164 @@
-# Getting Started with Create React App
+# ⚡ Keeps – Modern Freelancer & Agency Operating System
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+<div align="center">
+  <img src="https://via.placeholder.com/1200x600?text=Keeps+Dashboard+Preview" alt="Keeps Dashboard Preview" />
+</div>
 
-## Available Scripts
+<br />
+
+**Keeps** is a next-generation financial, invoicing, and tax management platform built specifically for freelancers, consultants, and digital agencies. Featuring a modern dark-mode bento-grid interface, advanced global compliance checks, and a seamless user experience, Keeps centralizes your entire financial workflow into a single, powerful operating system.
+
+---
+
+## 📑 Table of Contents
+
+- [Features](#-features)
+- [Tech Stack](#-tech-stack)
+- [Getting Started](#-getting-started)
+- [Available Scripts](#-available-scripts)
+- [Project Structure](#-project-structure)
+- [Environment Variables](#-environment-variables)
+- [Contributing](#-contributing)
+- [License](#-license)
+
+---
+
+## ✨ Features
+
+### 📊 Dashboard & Overview
+* **Financial KPIs:** Track Total Revenue, Expenses, Tax Collected, and Net Profit at a glance.
+* **Dynamic Charts:** Visualize your monthly revenue and tax overview using responsive, interactive charts.
+
+### 🧾 Advanced Invoicing & Billing
+* **Multi-Currency Support:** Create invoices in various currencies (TRY, EUR, USD, etc.).
+* **Payment Integration:** Allow clients to pay directly via the **Pay with Stripe** portal.
+* **PDF & Sharing:** Download professional PDF invoices or copy a secure portal link for your clients.
+* **Digital Signatures:** Attach legally binding digital signatures to your invoices using the built-in touch/mouse-supported signature pad.
+* **Recurring Invoices:** Automate your cash flow by creating and managing active recurring invoice templates for subscription-based clients.
+
+### 🏦 Tax Center & Tax Vault
+* **Automated Calculations:** Instantly calculate VAT (KDV), withholding, and income tax based on your revenue.
+* **The Tax Vault:** A unique feature allowing you to set a tax savings target (e.g., $5,000) and virtually deposit/withdraw funds to ensure you are always prepared for tax season.
+
+### 🌍 Global Compliance Engine
+* **Automated Audits:** Run compliance checks on your invoices against target country regulations (Turkey, United States, UK, Germany, France, etc.).
+* **Score System:** Automatically grades your invoice (e.g., 80% Score) and flags missing legal requirements like Seller/Buyer Addresses, Tax IDs (VKN/TCKN), and VAT breakdowns.
+
+### 👥 Clients, Projects & Expenses
+* **Client Directory:** Manage your client roster, contact information, and linked billing data.
+* **Project Tracking:** Monitor active projects, track profitability against allocated budgets, and manage specific project milestones.
+* **Expense Management:** Categorize and track all business transactions to accurately calculate net profit.
+
+### 🤝 Accountant Portal
+* **Read-Only Access:** Generate a secure, unique link (`/accountant/...`) to share with your tax advisor or accountant.
+* **Restricted View:** Allows them to view invoices, expenses, tax calculations, and financial reports without giving them access to your account settings or the ability to modify data.
+
+---
+
+## 🛠 Tech Stack
+
+Built with a highly scalable, modern frontend architecture optimized for performance and maintainability:
+
+* **Core:** React 19, Create React App (CRA) customized with CRACO
+* **Routing:** React Router DOM v7
+* **Styling & UI:** Tailwind CSS, Radix UI Primitives, shadcn/ui components
+* **Animations:** Framer Motion, tailwindcss-animate
+* **Forms & Validation:** React Hook Form, Zod, Hookform Resolvers
+* **Data Fetching:** Axios
+* **Data Visualization:** Recharts
+* **Package Manager:** Yarn
+
+---
+
+## 🚀 Getting Started
+
+Follow these instructions to set up the project locally for development and testing.
+
+### 1. Clone the Repository
+```bash
+git clone [https://github.com/yagizberkonay/Keeps.git](https://github.com/yagizberkonay/Keeps.git)
+cd Keeps
+
+2. Install Dependencies
+
+This project uses Yarn. Run the following command to install all required dependencies:
+Bash
+
+yarn install
+
+3. Setup Environment Variables
+
+Create a .env file in the root directory:
+Bash
+
+cp .env.example .env
+
+Populate the .env file with your specific configuration (see the Environment Variables section below).
+4. Start the Development Server
+
+Run the application locally using CRACO:
+Bash
+
+yarn start
+
+Open http://localhost:3000 in your browser to view the application.
+📜 Available Scripts
 
 In the project directory, you can run:
 
-### `npm start`
+    yarn start - Runs the app in the development mode.
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+    yarn build - Builds the app for production to the build folder. It correctly bundles React in production mode and optimizes the build for the best performance.
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+    yarn test - Launches the test runner in the interactive watch mode.
 
-### `npm test`
+📂 Project Structure
+Plaintext
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+Keeps/
+├── public/               # Static assets (images, fonts, index.html)
+├── src/
+│   ├── components/       # Reusable UI components (shadcn/ui, layout, cards)
+│   ├── pages/            # Application routes (Overview, Invoices, Tax Center, etc.)
+│   ├── hooks/            # Custom React hooks
+│   ├── lib/              # Utility functions, helpers, and Axios configurations
+│   ├── styles/           # Global styles and Tailwind configuration
+│   └── App.tsx           # Main application entry point and router setup
+├── craco.config.js       # CRA configuration overrides (Path aliases, Tailwind)
+├── tailwind.config.js    # Tailwind CSS design system configuration
+├── package.json          # Project dependencies and scripts
+└── README.md             # Project documentation
 
-### `npm run build`
+🔐 Environment Variables
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+To run this project, you will need to add the following environment variables to your .env file:
+Kod snippet'i
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+# API Configuration
+REACT_APP_API_URL="http://localhost:8000/api"
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+# Stripe Integration
+REACT_APP_STRIPE_PUBLIC_KEY="pk_test_your_stripe_key"
 
-### `npm run eject`
+# App URL (For Accountant Portal Links & Webhooks)
+REACT_APP_BASE_URL="http://localhost:3000"
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+🤝 Contributing
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+We welcome contributions to improve Keeps! If you have suggestions or bug reports, please:
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+    Open an Issue to discuss your proposed changes.
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+    Fork the repository and create a new branch (git checkout -b feature/AmazingFeature).
 
-## Learn More
+    Commit your changes (git commit -m 'Add some AmazingFeature').
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+    Push to the branch (git push origin feature/AmazingFeature).
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+    Open a Pull Request.
 
-### Code Splitting
+📄 License
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
+Copyright © 2026 Yağız Berk Önay / Hermes Software Inc. All rights reserved.
 
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+This source code is licensed for commercial and private use. It may not be copied, distributed, or published as open-source without prior written consent from the author.
